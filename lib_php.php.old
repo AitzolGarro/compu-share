@@ -1,0 +1,152 @@
+<?php
+    class manejoBD {
+        function f_conectar($bd) {
+            $conexion = mysqli_connect('localhost','compushare','Seim-2017',$bd);
+            return $conexion;
+        }
+        function f_ejecutar($conexion,$consulta) {
+            $rdo=mysqli_query($conexion,$consulta);
+            return $rdo;
+        }
+        function f_fetch($rdo){
+            $fila=mysqli_fetch_assoc($rdo);
+            return $fila;
+        }
+        
+    }
+    function f_resolverURL($url) {
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_HEADER, 1);
+            curl_setopt($ch, CURLOPT_NOBODY, 1);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            $cabezera = curl_exec($ch);
+            curl_close($ch);
+            // Comprobar si hay algun Location
+            if (preg_match('/^Location: (.+)$/im', $cabezera, $matches))
+                return trim($matches[1]);
+            //  Si no existe, no hay redireccion. Devolver la url original.
+            return $url;
+    }
+    function f_resolverDestinoFinal($url) {
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_NOBODY, 1);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1); // Sigue la redireccion
+    curl_setopt($ch, CURLOPT_AUTOREFERER, 1); // Establecer referente
+    curl_exec($ch);
+    $objetivo = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+    curl_close($ch);
+    if ($objetivo)
+        return $objetivo;
+    return false;
+    }
+
+    function f_submenu($codigo,$conexion,&$categoriasVisualizadas,&$nav){
+        
+        $nav .= "<ul class=\"sub-menu\">";
+        $consulta = "SELECT * FROM categorias WHERE catPadre = ".$codigo.";";
+        $rdo = mysqli_query($conexion,$consulta);
+    
+        while ($fila = mysqli_fetch_assoc($rdo)){
+            if (!in_array($fila['codCategoria'], $categoriasVisualizadas)) {
+                $nav .= "<li><a href=\"verDocumentacion.php?id=".$fila['codCategoria']."\">".$fila['Titulo']."</a>";
+                array_push($categoriasVisualizadas, $fila['codCategoria']);
+                
+                if ($fila['hijos']==1 ) {
+                    // Recursion
+                    f_submenu($fila['codCategoria'], $conexion, $categoriasVisualizadas,$nav);
+                    $nav .= "</li>";
+                } else {
+                    array_push($categoriasVisualizadas, $fila['codCategoria']);
+                    $nav .= "</li>";
+                }
+            }
+        }
+        $nav .= "</ul>";
+    }
+    function generarDocumentacion($conexion,&$navDocumentacion){
+       $categoriasVisualizadas = array();
+       $paraVisualizar = array();
+        $recogerCategorias = "SELECT * FROM categorias ORDER BY catPadre;";
+        $resultado = mysqli_query($conexion,$recogerCategorias);
+   
+        while ($categoria = mysqli_fetch_assoc($resultado)){
+            if (!in_array($categoria['codCategoria'],$categoriasVisualizadas)){
+            
+                    if ($categoria['catPadre'] != NULL || $categoria['catPadre'] != 1 || $categoria['codCategoria'] != 1 ){
+                        $navDocumentacion .= "<li><a href=\"verDocumentacion.php?id=".$fila['codCategoria']."\">".$categoria['Titulo']."</a>";
+                        if ($categoria['hijos']==1){
+                        f_submenu($categoria['codCategoria'],$conexion,$categoriasVisualizadas,$navDocumentacion);
+                        }
+                        array_push($categoriasVisualizadas,$categoria['codCategoria']);
+                    }
+            }
+            
+        }
+        $navDocumentacion .= "</li>";
+    }
+    function f_espaciar($nivel){
+        $salida = "";
+        for($x=0;$x<$nivel;$x++){
+            for($y=0;$y<6;$y++){
+                $salida .= "&nbsp;";
+            }
+        }
+        return $salida;
+    }
+    function f_subOption($codigo,$conexion,&$categoriasVisualizadas,&$select,&$nivel){
+       
+        
+        //Recoger los hijos de esa categoria
+        $consulta = "SELECT * FROM categorias WHERE catPadre = ".$codigo.";";
+        $rdo = mysqli_query($conexion,$consulta);
+        //Recorrer cada fila
+        while ($fila = mysqli_fetch_assoc($rdo)){
+            //Si la categoria no se a añadido antes procedemos a añadirla
+            if (!in_array($fila['codCategoria'], $categoriasVisualizadas)) {
+                $espacios = f_espaciar($nivel);
+                
+                
+                array_push($categoriasVisualizadas, $fila['codCategoria']);
+                //Tiene hijos o no
+                if ($fila['hijos']==1 ) {//Si
+                    //Abrimos otro optgroup y mediante la recursion comprobamos los hijos
+                    $nivel++;
+                    
+                    $select .= "<option value=".$fila['codCategoria'].">".$espacios.$fila['Titulo']."</option>";;
+                    f_subOption($fila['codCategoria'], $conexion, $categoriasVisualizadas,$select,$nivel);
+                    
+                } else {//No
+                    $select .= "<option value=".$fila['codCategoria'].">".$espacios.$fila['Titulo']."</option>";
+                    
+                   
+                }
+            }
+        }
+        $nivel--;
+
+    }
+    function f_dropDownDocumentacion($conexion,&$select){
+        $salida = "";
+        $nivel=0;
+       $categoriasVisualizadas = array();
+        $recogerCategorias = "SELECT * FROM categorias ORDER BY catPadre;";
+        $resultado = mysqli_query($conexion,$recogerCategorias);
+   
+        while ($categoria = mysqli_fetch_assoc($resultado)){
+            if (!in_array($categoria['codCategoria'],$categoriasVisualizadas)){
+            
+                    if ($categoria['catPadre'] != NULL || $categoria['catPadre'] != 1 || $categoria['codCategoria'] != 1 ){
+                        $salida .= "<option value=".$categoria['codCategoria'].">".$categoria['Titulo']."</option>";
+                    
+                        if ($categoria['hijos']==1){
+                            f_subOption($categoria['codCategoria'], $conexion, $categoriasVisualizadas,$salida,$nivel);
+                        }
+                        
+                        array_push($categoriasVisualizadas,$categoria['codCategoria']);
+                    }
+            }
+            
+        }
+        $select .= $salida;
+    }
+?>

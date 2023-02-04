@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ACE Autocompletion demo</title>
+  <style type="text/css" media="screen">
+    body {
+        overflow: hidden;
+    }
+    
+    #editor { 
+        margin: 0;
+        position: absolute;
+        top: 0;
+        bottom: 50%;
+        left: 0;
+        right: 0;
+    }
+    #return { 
+        margin: 0;
+        position: absolute;
+        top: 50%;
+        bottom: 0%;
+        left: 0;
+        right: 0;
+    }
+  </style>
+</head>
+<body>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <script src="https://ajaxorg.github.io/ace-builds/src/ace.js"></script>
+
+<div id="editor"></div>
+<div id="return"></div>
+
+<!-- load ace -->
+<script src="../src-noconflict/ace.js"></script>
+<!-- load ace language tools -->
+<script src="../src-noconflict/ext-language_tools.js"></script>
+<script>
+        editor = ace.edit("editor", {
+        theme: "ace/theme/tomorrow_night_blue",
+        mode: "ace/mode/html",
+        autoScrollEditorIntoView: true,
+        maxLines: 30,
+        minLines: 5
+      });
+    // enable autocompletion and snippets
+    editor.setOptions({
+        enableBasicAutocompletion: true,
+        enableSnippets: true,
+        enableLiveAutocompletion: false
+    });
+    function showHTML() {
+        $('#return').html(editor.getValue());
+    }
+    // or use data: url to handle things like doctype
+    function showHTMLInIFrame() {
+        $('#return').html("<iframe src=" +
+             "data:text/html," + encodeURIComponent(editor.getValue()) +
+        "></iframe>");
+    }
+    editor.on("input", showHTMLInIFrame)
+</script>
+
+<script src="./show_own_source.js"></script>
+</body>
+</html>
